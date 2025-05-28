@@ -18,13 +18,13 @@ labels:
   frames_per_segment: 250  # For 5s at ~50Hz from Whisper
   pooled_frames: 25       # After mean pooling
   
-  # Mapping from CSV columns to disfluency types
+  # Updated mapping to match your CSV columns exactly
   csv_column_mapping:
     "Prolongation": "Prolongation"
     "Interjection": "Interjection"
-    "WordRep": "Word Repetition"
-    "SoundRep": "Sound Repetition"
-    "Block": "Blocks"
+    "WordRep": "Word Repetition"      # Your CSV column name
+    "SoundRep": "Sound Repetition"    # Your CSV column name  
+    "Block": "Blocks"                 # Your CSV uses singular "Block"
   
 features:
   whisper_model: "openai/whisper-base.en"

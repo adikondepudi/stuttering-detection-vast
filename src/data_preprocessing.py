@@ -55,13 +55,13 @@ class DataPreprocessor:
         self.cloud_config = config.get('cloud', {})
         self.use_cloud_storage = self.cloud_config.get('enabled', False)
         
-        # Mapping from CSV columns to disfluency types
+        # Updated mapping to match your CSV columns
         self.csv_to_disfluency_map = {
             'Prolongation': 'Prolongation',
-            'Interjection': 'Interjection', 
-            'WordRep': 'Word Repetition',
-            'SoundRep': 'Sound Repetition',
-            'Block': 'Blocks'
+            'Interjection': 'Interjection',
+            'WordRep': 'Word Repetition',      # Your CSV uses 'WordRep'
+            'SoundRep': 'Sound Repetition',    # Your CSV uses 'SoundRep'
+            'Block': 'Blocks'                  # Your CSV uses 'Block' (singular)
         }
         
     def download_data_from_cloud(self):
@@ -300,13 +300,15 @@ class DataPreprocessor:
                 if pd.isna(ep_id_numeric):
                     print(f"Invalid EpId: {ep_id_val}, skipping row")
                     continue
-                ep_id = f"{int(ep_id_numeric):03d}"
+                # Keep the original 3-digit format to match your filenames
+                ep_id = f"{int(ep_id_numeric):03d}"  # This will give "010" for episode 10
                 clip_id_val = getattr(row, 'ClipId', 0)
                 clip_id_numeric = pd.to_numeric(clip_id_val, errors='coerce')
                 if pd.isna(clip_id_numeric):
                     print(f"Invalid ClipId: {clip_id_val}, skipping row")
                     continue
                 clip_id = int(clip_id_numeric)
+                # This will now generate: FluencyBank_010_0.wav
                 audio_filename = f"{show}_{ep_id}_{clip_id}.wav"
                 
                 # Convert start/stop from milliseconds to seconds
