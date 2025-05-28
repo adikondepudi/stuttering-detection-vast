@@ -9,7 +9,15 @@ from pathlib import Path
 def install_dependencies():
     """Install required packages"""
     print("Installing dependencies...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+    try:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
+        print("Dependencies installed successfully!")
+    except subprocess.CalledProcessError as e:
+        print(f"Error installing dependencies: {e}")
+        sys.exit(1)
+    except FileNotFoundError:
+        print("requirements.txt not found!")
+        sys.exit(1)
 
 def setup_directories():
     """Create necessary directories"""

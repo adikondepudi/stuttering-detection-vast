@@ -15,7 +15,8 @@ from .utils import (
     monitor_resources,
     print_training_header,
     format_time,
-    cleanup_checkpoints
+    cleanup_checkpoints,
+    estimate_training_time
 )
 
 __all__ = [
@@ -39,5 +40,6 @@ __all__ = [
     'monitor_resources',
     'print_training_header',
     'format_time',
-    'cleanup_checkpoints'
+    'cleanup_checkpoints',
+    'estimate_training_time'
 ]

@@ -318,9 +318,13 @@ class Trainer:
                 probs = torch.sigmoid(logits)
                 predictions = (probs > self.threshold).float()
                 
-                # Collect predictions
-                all_predictions.append(predictions.cpu().numpy())
-                all_labels.append(labels.cpu().numpy())
+                # Collect predictions with error handling
+                try:
+                    all_predictions.append(predictions.detach().cpu().numpy())
+                    all_labels.append(labels.detach().cpu().numpy())
+                except Exception as e:
+                    print(f"Error converting tensors: {e}")
+                    continue
                 
                 pbar.set_postfix({'val_loss': f"{loss.item():.4f}"})
         

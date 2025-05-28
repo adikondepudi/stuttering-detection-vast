@@ -69,7 +69,7 @@ splits:
 cloud:
   enabled: false  # Set to true when you have actual data
   type: "gdrive"  # or "s3", "gcs"
-  gdrive_file_id: "1wqLf7Ghw4sTFDVj9oah2scyWWtltwUSv"
+  gdrive_file_id: "your_google_drive_file_id_here"
 
 cost_optimization:
   max_training_hours: 6.0

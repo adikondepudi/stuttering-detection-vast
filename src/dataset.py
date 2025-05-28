@@ -75,7 +75,9 @@ class StutterDataset(Dataset):
         """Pool labels to match pooled feature frames"""
         target_frames = self.config['labels']['pooled_frames']
         current_frames = labels.shape[0]
-        
+        # Guard against division by zero
+        if target_frames == 0 or current_frames == 0:
+            return np.zeros((target_frames, labels.shape[1]), dtype=labels.dtype)
         # Same pooling logic as features
         pool_size = current_frames // target_frames
         remainder = current_frames % target_frames

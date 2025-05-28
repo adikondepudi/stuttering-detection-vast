@@ -10,12 +10,16 @@ from pathlib import Path
 class FeatureExtractor:
     def __init__(self, config, device='cuda'):
         self.config = config
-        self.device = device
+        # Fix device handling
+        if device == 'cuda' and torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
         
         # Initialize Whisper
         self.whisper_model = WhisperModel.from_pretrained(
             config['features']['whisper_model']
-        ).to(device if torch.cuda.is_available() or device == 'cpu' else 'cpu')
+        ).to(self.device)
         self.whisper_model.eval()
         self.whisper_feature_extractor = WhisperFeatureExtractor.from_pretrained(
             config['features']['whisper_model']
@@ -102,14 +106,15 @@ class FeatureExtractor:
     def _apply_temporal_pooling(self, features: np.ndarray, target_frames: int) -> np.ndarray:
         """Apply mean pooling to match target frame count"""
         current_frames = features.shape[0]
-        
+        # Guard against invalid inputs
+        if target_frames <= 0 or current_frames <= 0:
+            return np.zeros((max(1, target_frames), features.shape[1]), dtype=features.dtype)
         if current_frames <= target_frames:
             # Pad if necessary
             pad_frames = target_frames - current_frames
             if pad_frames > 0:
                 features = np.pad(features, ((0, pad_frames), (0, 0)), mode='edge')
             return features[:target_frames]
-        
         # Calculate pool size
         pool_size = current_frames // target_frames
         remainder = current_frames % target_frames

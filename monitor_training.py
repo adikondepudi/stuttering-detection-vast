@@ -16,9 +16,10 @@ def load_metrics(metrics_file):
     try:
         with open(metrics_file, 'r') as f:
             return json.load(f)
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError, PermissionError) as e:
         return None
-    except json.JSONDecodeError:
+    except Exception as e:
+        print(f"Unexpected error loading metrics: {e}")
         return None
 
 def print_current_status(metrics_file, results_file):
