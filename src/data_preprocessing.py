@@ -295,7 +295,11 @@ class DataPreprocessor:
             for _, row in df.iterrows():
                 # Construct audio filename
                 show = row['Show']
-                ep_id = f"{int(row['EpId']):03d}"  # Zero-pad to 3 digits
+                try:
+                    ep_id = f"{int(pd.to_numeric(row['EpId'], errors='coerce')):03d}"
+                except (ValueError, TypeError):
+                    print(f"Invalid EpId: {row['EpId']}, skipping row")
+                    continue
                 clip_id = int(row['ClipId'])
                 audio_filename = f"{show}_{ep_id}_{clip_id}.wav"
                 
@@ -312,16 +316,19 @@ class DataPreprocessor:
                 clip_annotations = []
                 
                 for csv_col, disfluency_type in self.csv_to_disfluency_map.items():
-                    if csv_col in row and pd.notna(row[csv_col]) and pd.to_numeric(row[csv_col], errors='coerce') > 0:
-                        # For this format, we assume the disfluency spans the entire clip
-                        clip_annotations.append({
-                            'start': 0.0,  # Relative to clip start
-                            'end': clip_duration,  # Relative to clip start
-                            'type': disfluency_type
-                        })
+                    if csv_col in row and pd.notna(row[csv_col]):
+                        numeric_val = pd.to_numeric(row[csv_col], errors='coerce')
+                        if pd.notna(numeric_val) and numeric_val > 0:
+                            # For this format, we assume the disfluency spans the entire clip
+                            clip_annotations.append({
+                                'start': 0.0,  # Relative to clip start
+                                'end': clip_duration,  # Relative to clip start
+                                'type': disfluency_type
+                            })
                 
                 # Only add if we have some disfluencies or if it's marked as fluent
-                if clip_annotations or (pd.notna(row.get('NoStutteredWords', 0)) and pd.to_numeric(row.get('NoStutteredWords', 0), errors='coerce') > 0):
+                no_stutter_val = pd.to_numeric(row.get('NoStutteredWords', 0), errors='coerce')
+                if clip_annotations or (pd.notna(no_stutter_val) and no_stutter_val > 0):
                     annotations[audio_filename] = clip_annotations
                     
                     # Debug output for first few files

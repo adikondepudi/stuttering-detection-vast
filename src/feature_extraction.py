@@ -11,10 +11,13 @@ class FeatureExtractor:
     def __init__(self, config, device='cuda'):
         self.config = config
         # Fix device handling
-        if device == 'cuda' and torch.cuda.is_available():
-            self.device = torch.device('cuda')
+        if isinstance(device, str):
+            if device == 'cuda' and torch.cuda.is_available():
+                self.device = torch.device('cuda')
+            else:
+                self.device = torch.device('cpu')
         else:
-            self.device = torch.device('cpu')
+            self.device = device  # Already a torch.device object
         
         # Initialize Whisper
         self.whisper_model = WhisperModel.from_pretrained(
@@ -105,6 +108,9 @@ class FeatureExtractor:
     
     def _apply_temporal_pooling(self, features: np.ndarray, target_frames: int) -> np.ndarray:
         """Apply mean pooling to match target frame count"""
+        # Validate inputs
+        if features.size == 0:
+            return np.zeros((max(1, target_frames), 1), dtype=features.dtype)
         current_frames = features.shape[0]
         # Guard against invalid inputs
         if target_frames <= 0 or current_frames <= 0:

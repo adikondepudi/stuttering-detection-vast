@@ -320,8 +320,15 @@ class Trainer:
                 
                 # Collect predictions with error handling
                 try:
-                    all_predictions.append(predictions.detach().cpu().numpy())
-                    all_labels.append(labels.detach().cpu().numpy())
+                    pred_numpy = predictions.detach().cpu().numpy()
+                    label_numpy = labels.detach().cpu().numpy()
+                    # Validate shapes
+                    if pred_numpy.shape[-1] == len(self.class_names) and label_numpy.shape[-1] == len(self.class_names):
+                        all_predictions.append(pred_numpy)
+                        all_labels.append(label_numpy)
+                    else:
+                        print(f"Warning: Shape mismatch - pred: {pred_numpy.shape}, label: {label_numpy.shape}")
+                        continue
                 except Exception as e:
                     print(f"Error converting tensors: {e}")
                     continue

@@ -12,8 +12,10 @@ class StutterDetectionModel(nn.Module):
         self.config = config
         
         # Input dimension (Whisper + MFCC features)
-        self.input_dim = (config['features'].get('whisper_dim', 768) + 
-                         3 * config['features']['mfcc'].get('n_mfcc', 13))
+        whisper_dim = config['features'].get('whisper_dim', 768)
+        mfcc_dim = config['features']['mfcc'].get('n_mfcc', 13)
+        self.input_dim = whisper_dim + 3 * mfcc_dim
+        print(f"Model input dimension: {self.input_dim} (Whisper: {whisper_dim}, MFCC: {3 * mfcc_dim})")
         
         # Temporal modeling with BiLSTM
         self.lstm1 = nn.LSTM(
