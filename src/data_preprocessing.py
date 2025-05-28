@@ -486,7 +486,7 @@ class DataPreprocessor:
                 if pd.isna(ep_id_numeric):
                     print(f"Invalid EpId: {ep_id_val}, skipping row")
                     continue
-                ep_id = f"{int(ep_id_numeric):03d}"
+                ep_id = str(int(ep_id_numeric))
                 clip_id_val = getattr(row, 'ClipId', 0)
                 clip_id_numeric = pd.to_numeric(clip_id_val, errors='coerce')
                 if pd.isna(clip_id_numeric):
