@@ -202,7 +202,7 @@ def cleanup_checkpoints(checkpoint_dir, keep_last_n=3):
         checkpoint_files.append(file)
     
     # Sort by modification time (newest first)
-    checkpoint_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+    checkpoint_files.sort(key=lambda x: x.stat().st_mtime if x.exists() else 0, reverse=True)
     
     # Remove old checkpoints
     files_to_remove = checkpoint_files[keep_last_n:]

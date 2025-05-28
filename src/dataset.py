@@ -170,7 +170,7 @@ class StutterDataset(Dataset):
         
         # Find suitable start position
         valid_starts = [i for i in fluent_indices 
-                       if i + duration_frames < len(labels) 
+                       if i + duration_frames < len(labels) and i + duration_frames >= 0
                        and fluent_mask[i:i+duration_frames].all()]
         
         if not valid_starts:

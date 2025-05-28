@@ -30,7 +30,10 @@ from .utils import (EarlyStopping, CostOptimizer, save_checkpoint, load_checkpoi
 class Trainer:
     def __init__(self, config, device='cuda', use_wandb=False):
         self.config = config
-        self.device = torch.device(device if torch.cuda.is_available() else 'cpu')
+        if device == 'cuda' and torch.cuda.is_available():
+            self.device = torch.device('cuda')
+        else:
+            self.device = torch.device('cpu')
         self.use_wandb = use_wandb and HAS_WANDB
         
         # Initialize Weights & Biases for experiment tracking
@@ -111,7 +114,7 @@ class Trainer:
         self.resume_from_checkpoint = config.get('training', {}).get('resume_checkpoint')
         self.start_epoch = 0
         
-        if self.resume_from_checkpoint and Path(self.resume_from_checkpoint).exists():
+        if self.resume_from_checkpoint is not None and Path(self.resume_from_checkpoint).exists():
             self._load_checkpoint_for_resume()
         
         # Monitoring settings
@@ -507,9 +510,17 @@ class Trainer:
         # Add metric history
         results['metric_history'] = self.metric_tracker.history
         
-        # Save
+        def convert_numpy(obj):
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, (np.integer, np.int64)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64)):
+                return float(obj)
+            return str(obj)
+
         with open(results_path, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
+            json.dump(results, f, indent=2, default=convert_numpy)
         
         # Save metrics history separately
         metrics_path = self.checkpoint_dir / 'training_metrics.json'

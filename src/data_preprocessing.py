@@ -305,14 +305,14 @@ class DataPreprocessor:
                 clip_duration = stop_time - start_time
                 
                 # Skip clips that are too short
-                if clip_duration < 0.5:  # Less than 500ms
+                if clip_duration <= 0.5:  # Less than or equal to 500ms
                     continue
                 
                 # Extract disfluency labels
                 clip_annotations = []
                 
                 for csv_col, disfluency_type in self.csv_to_disfluency_map.items():
-                    if csv_col in row and row[csv_col] > 0:
+                    if csv_col in row and pd.notna(row[csv_col]) and pd.to_numeric(row[csv_col], errors='coerce') > 0:
                         # For this format, we assume the disfluency spans the entire clip
                         clip_annotations.append({
                             'start': 0.0,  # Relative to clip start
@@ -321,7 +321,7 @@ class DataPreprocessor:
                         })
                 
                 # Only add if we have some disfluencies or if it's marked as fluent
-                if clip_annotations or row.get('NoStutteredWords', 0) > 0:
+                if clip_annotations or (pd.notna(row.get('NoStutteredWords', 0)) and pd.to_numeric(row.get('NoStutteredWords', 0), errors='coerce') > 0):
                     annotations[audio_filename] = clip_annotations
                     
                     # Debug output for first few files

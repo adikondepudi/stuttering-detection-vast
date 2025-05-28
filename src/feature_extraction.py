@@ -15,7 +15,7 @@ class FeatureExtractor:
         # Initialize Whisper
         self.whisper_model = WhisperModel.from_pretrained(
             config['features']['whisper_model']
-        ).to(device)
+        ).to(device if torch.cuda.is_available() or device == 'cpu' else 'cpu')
         self.whisper_model.eval()
         self.whisper_feature_extractor = WhisperFeatureExtractor.from_pretrained(
             config['features']['whisper_model']

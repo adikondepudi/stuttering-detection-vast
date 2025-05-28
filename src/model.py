@@ -12,36 +12,36 @@ class StutterDetectionModel(nn.Module):
         self.config = config
         
         # Input dimension (Whisper + MFCC features)
-        self.input_dim = (config['features']['whisper_dim'] + 
-                         3 * config['features']['mfcc']['n_mfcc'])  # 768 + 39 = 807
+        self.input_dim = (config['features'].get('whisper_dim', 768) + 
+                         3 * config['features']['mfcc'].get('n_mfcc', 13))
         
         # Temporal modeling with BiLSTM
         self.lstm1 = nn.LSTM(
             input_size=self.input_dim,
-            hidden_size=config['model']['lstm_units_1'],
+            hidden_size=config['model'].get('lstm_units_1', 256),
             num_layers=1,
             batch_first=True,
             bidirectional=True,
             dropout=0  # We'll use explicit dropout layers
         )
         
-        self.dropout1 = nn.Dropout(config['model']['dropout_rate'])
+        self.dropout1 = nn.Dropout(config['model'].get('dropout_rate', 0.3))
         
         self.lstm2 = nn.LSTM(
-            input_size=config['model']['lstm_units_1'] * 2,  # *2 for bidirectional
-            hidden_size=config['model']['lstm_units_2'],
+            input_size=config['model'].get('lstm_units_1', 256) * 2,  # *2 for bidirectional
+            hidden_size=config['model'].get('lstm_units_2', 128),
             num_layers=1,
             batch_first=True,
             bidirectional=True,
             dropout=0
         )
         
-        self.dropout2 = nn.Dropout(config['model']['dropout_rate'])
+        self.dropout2 = nn.Dropout(config['model'].get('dropout_rate', 0.3))
         
         # Classification head
         self.classifier = nn.Linear(
-            config['model']['lstm_units_2'] * 2,  # *2 for bidirectional
-            config['labels']['num_classes']
+            config['model'].get('lstm_units_2', 128) * 2,  # *2 for bidirectional
+            config['labels'].get('num_classes', 5)
         )
         
         # Initialize weights

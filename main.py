@@ -8,6 +8,7 @@ import yaml
 import sys
 import time
 from pathlib import Path
+import atexit
 
 from src import DataPreprocessor, Trainer, set_seed, get_device, count_parameters, print_training_header
 
@@ -194,6 +195,7 @@ Examples:
 
 
 if __name__ == "__main__":
+    temp_config_path = None
     args = parse_arguments()
     
     # Handle resume argument
@@ -202,22 +204,26 @@ if __name__ == "__main__":
         try:
             with open(args.config, 'r') as f:
                 config = yaml.safe_load(f)
-            
             if 'training' not in config:
                 config['training'] = {}
-            
             config['training']['resume_checkpoint'] = args.resume
-            
             # Save modified config temporarily
             temp_config_path = Path(args.config).parent / f"temp_{Path(args.config).name}"
             with open(temp_config_path, 'w') as f:
                 yaml.dump(config, f)
-            
             args.config = str(temp_config_path)
             print(f"Resume checkpoint set to: {args.resume}")
-            
         except Exception as e:
             print(f"Error setting resume checkpoint: {e}")
             sys.exit(1)
+        
+        def cleanup_temp_config():
+            try:
+                if temp_config_path and Path(temp_config_path).exists():
+                    Path(temp_config_path).unlink()
+                    print(f"Temporary config file {temp_config_path} deleted.")
+            except Exception as e:
+                print(f"Warning: Could not delete temporary config file: {e}")
+        atexit.register(cleanup_temp_config)
     
     main(args)

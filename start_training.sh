@@ -9,8 +9,8 @@ echo "=================================================="
 # Check if we're already in tmux
 if [ -n "$TMUX" ]; then
     echo "Already in tmux session. Starting training directly..."
-    python setup_vast.py
-    python main.py --config config/config.yaml --mode all --use-wandb
+    python3 setup_vast.py
+    python3 main.py --config config/config.yaml --mode all --use-wandb
 else
     echo "Creating persistent tmux session..."
     
@@ -19,7 +19,7 @@ else
     
     # Create new session and run training
     tmux new-session -d -s training_session -c "$(pwd)" \
-        'python setup_vast.py && python main.py --config config/config.yaml --mode all --use-wandb; echo "Training completed. Press any key to exit."; read -n 1'
+        'python3 setup_vast.py && python3 main.py --config config/config.yaml --mode all --use-wandb; echo "Training completed. Press any key to exit."; read -n 1'
     
     echo "Training started in tmux session 'training_session'"
     echo ""
@@ -28,7 +28,7 @@ else
     echo ""
     echo "To detach from session: Ctrl+B, then D"
     echo "To monitor without attaching:"
-    echo "  python monitor_training.py --interval 60"
+    echo "  python3 monitor_training.py --interval 60"
     echo ""
     echo "Session will remain active even if you disconnect."
 fi

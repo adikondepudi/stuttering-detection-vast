@@ -21,7 +21,7 @@ labels:
   # Mapping from CSV columns to disfluency types
   csv_column_mapping:
     "Prolongation": "Prolongation"
-    "Interjection": "Interjection" 
+    "Interjection": "Interjection"
     "WordRep": "Word Repetition"
     "SoundRep": "Sound Repetition"
     "Block": "Blocks"
