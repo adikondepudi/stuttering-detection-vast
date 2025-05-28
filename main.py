@@ -15,19 +15,22 @@ from src import DataPreprocessor, Trainer, set_seed, get_device, count_parameter
 
 def validate_config(config):
     required_keys = [
-        'data.raw_data_path',
-        'data.processed_data_path',
-        'labels.disfluency_types',
-        'training.batch_size'
+        ('data.raw_data_path', str),
+        ('data.processed_data_path', str),
+        ('labels.disfluency_types', list),
+        ('training.batch_size', int),
+        ('training.max_epochs', int)
     ]
-    for key in required_keys:
-        keys = key.split('.')
+    for key_path, expected_type in required_keys:
+        keys = key_path.split('.')
         current = config
         try:
             for k in keys:
                 current = current[k]
+            if not isinstance(current, expected_type):
+                raise ValueError(f"Config key {key_path} should be {expected_type}, got {type(current)}")
         except KeyError:
-            raise ValueError(f"Missing required config key: {key}")
+            raise ValueError(f"Missing required config key: {key_path}")
 
 
 def main(args):

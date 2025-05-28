@@ -132,7 +132,11 @@ class FeatureExtractor:
         for i in range(target_frames):
             # Distribute remainder frames
             end_idx = start_idx + pool_size + (1 if i < remainder else 0)
-            pooled.append(features[start_idx:end_idx].mean(axis=0))
+            if end_idx > start_idx:
+                pooled.append(features[start_idx:end_idx].mean(axis=0))
+            else:
+                # Fallback for empty slice
+                pooled.append(features[start_idx:start_idx+1].mean(axis=0))
             start_idx = end_idx
         
         return np.array(pooled)

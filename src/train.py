@@ -377,6 +377,9 @@ class Trainer:
     def _calculate_metrics(self, predictions: List, labels: List, detailed: bool = False) -> Dict:
         """Calculate evaluation metrics"""
         # Concatenate all predictions and labels
+        if not predictions or not labels:
+            print("Warning: No predictions or labels to calculate metrics")
+            return {'macro_f1': 0.0, 'weighted_f1': 0.0, 'uar': 0.0}
         predictions = np.concatenate(predictions, axis=0)
         labels = np.concatenate(labels, axis=0)
         

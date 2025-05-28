@@ -301,7 +301,12 @@ class DataPreprocessor:
                     print(f"Invalid EpId: {ep_id_val}, skipping row")
                     continue
                 ep_id = f"{int(ep_id_numeric):03d}"
-                clip_id = int(getattr(row, 'ClipId', 0))
+                clip_id_val = getattr(row, 'ClipId', 0)
+                clip_id_numeric = pd.to_numeric(clip_id_val, errors='coerce')
+                if pd.isna(clip_id_numeric):
+                    print(f"Invalid ClipId: {clip_id_val}, skipping row")
+                    continue
+                clip_id = int(clip_id_numeric)
                 audio_filename = f"{show}_{ep_id}_{clip_id}.wav"
                 
                 # Convert start/stop from milliseconds to seconds

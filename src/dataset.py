@@ -73,6 +73,12 @@ class StutterDataset(Dataset):
     
     def _pool_labels(self, labels: np.ndarray) -> np.ndarray:
         """Pool labels to match pooled feature frames"""
+        # Validate input shape
+        if len(labels.shape) != 2:
+            print(f"Warning: Unexpected labels shape: {labels.shape}")
+            return np.zeros((self.config['labels']['pooled_frames'], 
+                            len(self.config['labels']['disfluency_types'])), 
+                           dtype=labels.dtype)
         target_frames = self.config['labels']['pooled_frames']
         current_frames = labels.shape[0]
         # Guard against division by zero
@@ -81,16 +87,17 @@ class StutterDataset(Dataset):
         # Same pooling logic as features
         pool_size = current_frames // target_frames
         remainder = current_frames % target_frames
-        
         pooled = []
         start_idx = 0
-        
         for i in range(target_frames):
             end_idx = start_idx + pool_size + (1 if i < remainder else 0)
             # Use max pooling for labels (if any frame has the label, pooled frame has it)
-            pooled.append(labels[start_idx:end_idx].max(axis=0))
+            if end_idx > start_idx:
+                pooled.append(labels[start_idx:end_idx].max(axis=0))
+            else:
+                # Fallback for empty slice
+                pooled.append(labels[start_idx:start_idx+1].max(axis=0))
             start_idx = end_idx
-        
         return np.array(pooled)
     
     def _apply_augmentations(self, audio: np.ndarray, labels: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

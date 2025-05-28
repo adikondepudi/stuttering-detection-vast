@@ -14,7 +14,7 @@ class StutterDetectionModel(nn.Module):
         # Input dimension (Whisper + MFCC features)
         whisper_dim = config['features'].get('whisper_dim', 768)
         mfcc_dim = config['features']['mfcc'].get('n_mfcc', 13)
-        mfcc_delta_count = config['features']['mfcc'].get('delta_count', 2)  # default: base + 2 deltas
+        mfcc_delta_count = 2  # Always use base + delta + delta2 = 3 total
         self.input_dim = whisper_dim + (mfcc_delta_count + 1) * mfcc_dim
         print(f"Model input dimension: {self.input_dim} (Whisper: {whisper_dim}, MFCC: {(mfcc_delta_count + 1) * mfcc_dim})")
         
