@@ -1,0 +1,74 @@
+# Configuration for Stuttering Detection Training Pipeline
+
+data:
+  raw_data_path: "data/raw"
+  processed_data_path: "data/processed"
+  splits_path: "data/splits"
+  audio_format: "wav"
+  sample_rate: 16000
+  target_loudness: -23  # LUFS
+  
+segmentation:
+  segment_length: 5.0  # seconds
+  hop_length: 1.0     # seconds
+  
+labels:
+  disfluency_types: ["Prolongation", "Interjection", "Word Repetition", "Sound Repetition", "Blocks"]
+  num_classes: 5
+  frames_per_segment: 250  # For 5s at ~50Hz from Whisper
+  pooled_frames: 25       # After mean pooling
+  
+features:
+  whisper_model: "openai/whisper-base.en"
+  whisper_dim: 768
+  mfcc:
+    n_mfcc: 13
+    n_fft: 400      # 25ms at 16kHz
+    hop_length: 160  # 10ms at 16kHz
+    
+augmentation:
+  noise_prob: 0.5
+  noise_snr_range: [5, 20]
+  speed_prob: 0.5
+  speed_factors: [0.9, 0.95, 1.05, 1.1]
+  repetition_prob: 0.2
+  repetition_duration_range: [0.2, 0.5]
+  
+model:
+  lstm_units_1: 256
+  lstm_units_2: 128
+  dropout_rate: 0.3
+  
+training:
+  batch_size: 32
+  max_epochs: 75
+  early_stopping_patience: 10
+  lr_scheduler_patience: 3
+  initial_lr: 5e-5
+  weight_decay: 1e-2
+  min_lr: 1e-7
+  lr_reduction_factor: 0.2
+  gradient_clip_value: 1.0
+  focal_loss_alpha: 0.25
+  focal_loss_gamma: 2.0
+  prediction_threshold: 0.5
+  
+splits:
+  train_ratio: 0.8
+  val_ratio: 0.1
+  test_ratio: 0.1
+
+cloud:
+  enabled: false  # Set to true when you have actual data
+  type: "gdrive"  # or "s3", "gcs"
+  gdrive_file_id: "your_google_drive_file_id_here"
+
+cost_optimization:
+  max_training_hours: 6.0
+  target_performance: 0.80
+  enable_early_cost_stop: true
+
+monitoring:
+  use_wandb: false  # Set to true if you want WandB logging
+  wandb_project: "stuttering-detection"
+  print_resource_usage: true
