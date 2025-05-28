@@ -82,13 +82,13 @@ class StutterDetectionModel(nn.Module):
         # Time-distributed classification
         # Reshape for linear layer
         batch_size, seq_len, hidden_dim = lstm_out2.shape
-        lstm_out2_reshaped = lstm_out2.view(-1, hidden_dim)
+        lstm_out2_reshaped = lstm_out2.reshape(-1, hidden_dim)
         
         # Apply classifier
         logits = self.classifier(lstm_out2_reshaped)
         
         # Reshape back
-        logits = logits.view(batch_size, seq_len, -1)
+        logits = logits.reshape(batch_size, seq_len, -1)
         
         return logits
 
