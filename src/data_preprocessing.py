@@ -300,15 +300,14 @@ class DataPreprocessor:
                 if pd.isna(ep_id_numeric):
                     print(f"Invalid EpId: {ep_id_val}, skipping row")
                     continue
-                # Keep the original 3-digit format to match your filenames
-                ep_id = f"{int(ep_id_numeric):03d}"  # This will give "010" for episode 10
+                ep_id = str(int(ep_id_numeric))  # This will give "10" for episode 10
                 clip_id_val = getattr(row, 'ClipId', 0)
                 clip_id_numeric = pd.to_numeric(clip_id_val, errors='coerce')
                 if pd.isna(clip_id_numeric):
                     print(f"Invalid ClipId: {clip_id_val}, skipping row")
                     continue
                 clip_id = int(clip_id_numeric)
-                # This will now generate: FluencyBank_010_0.wav
+                # This will now generate: FluencyBank_10_0.wav
                 audio_filename = f"{show}_{ep_id}_{clip_id}.wav"
                 
                 # Convert start/stop from milliseconds to seconds
