@@ -55,6 +55,15 @@ class DataPreprocessor:
         self.cloud_config = config.get('cloud', {})
         self.use_cloud_storage = self.cloud_config.get('enabled', False)
         
+        # Mapping from CSV columns to disfluency types
+        self.csv_to_disfluency_map = {
+            'Prolongation': 'Prolongation',
+            'Interjection': 'Interjection', 
+            'WordRep': 'Word Repetition',
+            'SoundRep': 'Sound Repetition',
+            'Block': 'Blocks'
+        }
+        
     def download_data_from_cloud(self):
         """Download data from cloud storage"""
         if not self.use_cloud_storage:
@@ -190,16 +199,16 @@ class DataPreprocessor:
             print("No raw data found. Please check your data configuration.")
             return
         
-        # 1. Parse annotations
-        print("Parsing annotations...")
-        annotations = self._parse_annotations()
+        # 1. Parse clip labels CSV
+        print("Parsing clip labels CSV...")
+        annotations = self._parse_clip_labels_csv()
         if not annotations:
-            print("No annotations found! Please check your annotation files.")
+            print("No annotations found! Please check your clip_labels.csv file.")
             return
         
         # 2. Process audio files and create segments
         print("Creating segments...")
-        segments_data = self._create_segments(annotations)
+        segments_data = self._create_segments_from_clips(annotations)
         if not segments_data:
             print("No segments created! Please check your audio files.")
             return
@@ -249,65 +258,85 @@ class DataPreprocessor:
             audio_files.extend(list(self.raw_path.glob(f"*{ext}")))
             audio_files.extend(list(self.raw_path.glob(f"**/*{ext}")))
         
-        return len(audio_files) > 0
+        # Also check for clip_labels.csv
+        csv_files = list(self.raw_path.glob("clip_labels.csv")) + list(self.raw_path.glob("**/clip_labels.csv"))
         
-    def _parse_annotations(self) -> Dict:
-        """Parse annotation files into unified format"""
+        return len(audio_files) > 0 and len(csv_files) > 0
+        
+    def _parse_clip_labels_csv(self) -> Dict:
+        """Parse the clip_labels.csv file"""
+        # Look for clip_labels.csv file
+        csv_files = (list(self.raw_path.glob("clip_labels.csv")) + 
+                    list(self.raw_path.glob("**/clip_labels.csv")))
+        
+        if not csv_files:
+            print("clip_labels.csv not found!")
+            return {}
+        
+        csv_file = csv_files[0]
+        print(f"Processing clip labels: {csv_file}")
+        
         annotations = defaultdict(list)
         
-        # Look for CSV or TextGrid files
-        annotation_files = (list(self.raw_path.glob("*.csv")) + 
-                          list(self.raw_path.glob("**/*.csv")) +
-                          list(self.raw_path.glob("*.TextGrid")) +
-                          list(self.raw_path.glob("**/*.TextGrid")))
-        
-        print(f"Found {len(annotation_files)} annotation files")
-        
-        for ann_file in annotation_files:
-            print(f"Processing annotation file: {ann_file}")
-            try:
-                if ann_file.suffix == '.csv':
-                    df = pd.read_csv(ann_file)
-                    # Expected columns: audio_file, start_time, end_time, disfluency_type, annotator_id
-                    for _, row in df.iterrows():
-                        audio_file = row['audio_file']
-                        annotations[audio_file].append({
-                            'start': float(row['start_time']),
-                            'end': float(row['end_time']),
-                            'type': row['disfluency_type'],
-                            'annotator': row.get('annotator_id', 'default')
-                        })
-            except Exception as e:
-                print(f"Error processing {ann_file}: {e}")
-        
-        # Apply inter-annotator agreement
-        filtered_annotations = self._apply_annotator_agreement(annotations)
-        
-        print(f"Loaded annotations for {len(filtered_annotations)} audio files")
-        return filtered_annotations
-    
-    def _apply_annotator_agreement(self, annotations: Dict) -> Dict:
-        """Filter annotations based on inter-annotator agreement"""
-        filtered = defaultdict(list)
-        
-        for audio_file, anns in annotations.items():
-            # Group by time overlap and type
-            grouped = defaultdict(list)
-            for ann in anns:
-                key = (round(ann['start'], 1), round(ann['end'], 1), ann['type'])
-                grouped[key].append(ann['annotator'])
+        try:
+            df = pd.read_csv(csv_file)
+            print(f"Loaded {len(df)} rows from clip_labels.csv")
             
-            # Keep annotations with at least 2 annotators agreeing (or just 1 if that's all we have)
-            for (start, end, dtype), annotators in grouped.items():
-                unique_annotators = set(annotators)
-                if len(unique_annotators) >= min(2, len(annotators)):
-                    filtered[audio_file].append({
-                        'start': start,
-                        'end': end,
-                        'type': dtype
-                    })
+            # Debug: print column names
+            print(f"CSV columns: {list(df.columns)}")
+            
+            # Check required columns
+            required_cols = ['Show', 'EpId', 'ClipId', 'Start', 'Stop']
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            if missing_cols:
+                print(f"Missing required columns: {missing_cols}")
+                return {}
+            
+            for _, row in df.iterrows():
+                # Construct audio filename
+                show = row['Show']
+                ep_id = f"{int(row['EpId']):03d}"  # Zero-pad to 3 digits
+                clip_id = int(row['ClipId'])
+                audio_filename = f"{show}_{ep_id}_{clip_id}.wav"
+                
+                # Convert start/stop from milliseconds to seconds
+                start_time = float(row['Start']) / 1000.0
+                stop_time = float(row['Stop']) / 1000.0
+                clip_duration = stop_time - start_time
+                
+                # Skip clips that are too short
+                if clip_duration < 0.5:  # Less than 500ms
+                    continue
+                
+                # Extract disfluency labels
+                clip_annotations = []
+                
+                for csv_col, disfluency_type in self.csv_to_disfluency_map.items():
+                    if csv_col in row and row[csv_col] > 0:
+                        # For this format, we assume the disfluency spans the entire clip
+                        clip_annotations.append({
+                            'start': 0.0,  # Relative to clip start
+                            'end': clip_duration,  # Relative to clip start
+                            'type': disfluency_type
+                        })
+                
+                # Only add if we have some disfluencies or if it's marked as fluent
+                if clip_annotations or row.get('NoStutteredWords', 0) > 0:
+                    annotations[audio_filename] = clip_annotations
+                    
+                    # Debug output for first few files
+                    if len(annotations) <= 5:
+                        print(f"  {audio_filename}: {len(clip_annotations)} disfluencies")
+            
+            print(f"Processed annotations for {len(annotations)} audio files")
+            
+        except Exception as e:
+            print(f"Error processing clip_labels.csv: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
         
-        return filtered
+        return annotations
     
     def _load_and_normalize_audio(self, audio_path: Path) -> Optional[np.ndarray]:
         """Load audio file and normalize to target loudness"""
@@ -329,8 +358,8 @@ class DataPreprocessor:
             print(f"Error loading {audio_path}: {e}")
             return None
     
-    def _create_segments(self, annotations: Dict) -> List[Dict]:
-        """Create overlapping segments from audio files"""
+    def _create_segments_from_clips(self, annotations: Dict) -> List[Dict]:
+        """Create segments from clip-based annotations"""
         segments_data = []
         
         for audio_file, anns in annotations.items():
@@ -344,36 +373,59 @@ class DataPreprocessor:
             if audio is None:
                 continue
             
-            # Calculate segment parameters
-            segment_samples = int(self.segment_length * self.sample_rate)
-            hop_samples = int(self.hop_length * self.sample_rate)
+            audio_duration = len(audio) / self.sample_rate
             
-            # Create segments
-            for i, start_sample in enumerate(range(0, len(audio) - segment_samples + 1, hop_samples)):
-                end_sample = start_sample + segment_samples
-                segment = audio[start_sample:end_sample]
+            # For clips, we can either:
+            # 1. Use the entire clip as one segment (if it's <= segment_length)
+            # 2. Split longer clips into overlapping segments
+            
+            if audio_duration <= self.segment_length:
+                # Use entire clip as one segment
+                # Pad to segment_length if necessary
+                segment_samples = int(self.segment_length * self.sample_rate)
+                if len(audio) < segment_samples:
+                    audio = np.pad(audio, (0, segment_samples - len(audio)), mode='constant')
+                else:
+                    audio = audio[:segment_samples]
                 
-                # Calculate time boundaries
-                start_time = start_sample / self.sample_rate
-                end_time = end_sample / self.sample_rate
-                
-                # Generate frame-level labels
-                labels = self._generate_frame_labels(anns, start_time, end_time)
-                
-                # Skip segments with no speech or marked as difficult
-                if self._should_skip_segment(labels):
-                    continue
+                # Generate labels for the entire segment
+                labels = self._generate_clip_labels(anns, audio_duration)
                 
                 segments_data.append({
                     'audio_file': audio_file,
-                    'segment_idx': i,
-                    'audio': segment,
+                    'segment_idx': 0,
+                    'audio': audio,
                     'labels': labels,
-                    'start_time': start_time,
-                    'end_time': end_time
+                    'start_time': 0.0,
+                    'end_time': self.segment_length
                 })
+                
+            else:
+                # Split longer clips into overlapping segments
+                segment_samples = int(self.segment_length * self.sample_rate)
+                hop_samples = int(self.hop_length * self.sample_rate)
+                
+                for i, start_sample in enumerate(range(0, len(audio) - segment_samples + 1, hop_samples)):
+                    end_sample = start_sample + segment_samples
+                    segment = audio[start_sample:end_sample]
+                    
+                    # Calculate time boundaries relative to clip
+                    start_time = start_sample / self.sample_rate
+                    end_time = end_sample / self.sample_rate
+                    
+                    # Generate frame-level labels for this segment
+                    labels = self._generate_segment_labels(anns, start_time, end_time, audio_duration)
+                    
+                    segments_data.append({
+                        'audio_file': audio_file,
+                        'segment_idx': i,
+                        'audio': segment,
+                        'labels': labels,
+                        'start_time': start_time,
+                        'end_time': end_time
+                    })
         
-        print(f"Created {len(segments_data)} segments")
+        print(f"Created {len(segments_data)} segments from {len(annotations)} clips")
         return segments_data
     
     def _find_audio_file(self, audio_file: str) -> Optional[Path]:
@@ -398,21 +450,22 @@ class DataPreprocessor:
         
         return None
     
-    def _generate_frame_labels(self, annotations: List[Dict], start_time: float, end_time: float) -> np.ndarray:
-        """Generate frame-level multi-label matrix for a segment"""
+    def _generate_clip_labels(self, annotations: List[Dict], clip_duration: float) -> np.ndarray:
+        """Generate frame-level labels for an entire clip"""
         labels = np.zeros((self.frames_per_segment, len(self.disfluency_types)), dtype=np.float32)
         
         for ann in annotations:
-            # Check if annotation overlaps with segment
-            if ann['end'] <= start_time or ann['start'] >= end_time:
-                continue
+            # Map annotation to frame indices
+            rel_start = ann['start']
+            rel_end = min(ann['end'], clip_duration)
             
-            # Map to frame indices
-            rel_start = max(0, ann['start'] - start_time)
-            rel_end = min(self.segment_length, ann['end'] - start_time)
-            
+            # Convert to frame indices
             frame_start = int(rel_start * self.frames_per_segment / self.segment_length)
             frame_end = int(rel_end * self.frames_per_segment / self.segment_length)
+            
+            # Ensure valid range
+            frame_start = max(0, frame_start)
+            frame_end = min(self.frames_per_segment, frame_end)
             
             # Set labels
             if ann['type'] in self.disfluency_types:
@@ -421,36 +474,76 @@ class DataPreprocessor:
         
         return labels
     
-    def _should_skip_segment(self, labels: np.ndarray) -> bool:
-        """Check if segment should be skipped (e.g., no speech, music)"""
-        # For now, don't skip any segments - let the model learn from all data
-        return False
+    def _generate_segment_labels(self, annotations: List[Dict], start_time: float, 
+                                end_time: float, clip_duration: float) -> np.ndarray:
+        """Generate frame-level labels for a segment within a clip"""
+        labels = np.zeros((self.frames_per_segment, len(self.disfluency_types)), dtype=np.float32)
+        
+        for ann in annotations:
+            # Check if annotation overlaps with segment
+            ann_start = ann['start']
+            ann_end = min(ann['end'], clip_duration)
+            
+            if ann_end <= start_time or ann_start >= end_time:
+                continue
+            
+            # Calculate overlap
+            overlap_start = max(ann_start, start_time)
+            overlap_end = min(ann_end, end_time)
+            
+            # Convert to relative time within segment
+            rel_start = overlap_start - start_time
+            rel_end = overlap_end - start_time
+            
+            # Convert to frame indices
+            frame_start = int(rel_start * self.frames_per_segment / self.segment_length)
+            frame_end = int(rel_end * self.frames_per_segment / self.segment_length)
+            
+            # Ensure valid range
+            frame_start = max(0, frame_start)
+            frame_end = min(self.frames_per_segment, frame_end)
+            
+            # Set labels
+            if ann['type'] in self.disfluency_types:
+                class_idx = self.disfluency_types.index(ann['type'])
+                labels[frame_start:frame_end, class_idx] = 1
+        
+        return labels
     
     def _create_splits(self, segments_data: List[Dict]) -> Dict[str, List[int]]:
         """Create train/val/test splits ensuring speaker independence"""
-        # Group segments by audio file (proxy for speaker)
-        file_groups = defaultdict(list)
+        # Group segments by episode (proxy for speaker/session)
+        episode_groups = defaultdict(list)
         for i, seg in enumerate(segments_data):
-            file_groups[seg['audio_file']].append(i)
+            # Extract episode from filename (e.g., FluencyBank_010_0.wav -> FluencyBank_010)
+            audio_file = seg['audio_file']
+            parts = audio_file.split('_')
+            if len(parts) >= 2:
+                episode_key = f"{parts[0]}_{parts[1]}"  # Show_EpId
+            else:
+                episode_key = audio_file  # Fallback
+            episode_groups[episode_key].append(i)
         
-        # Split at file level
-        files = list(file_groups.keys())
-        np.random.shuffle(files)
+        # Split at episode level
+        episodes = list(episode_groups.keys())
+        np.random.shuffle(episodes)
         
-        n_files = len(files)
-        train_end = int(n_files * self.config['splits']['train_ratio'])
-        val_end = train_end + int(n_files * self.config['splits']['val_ratio'])
+        n_episodes = len(episodes)
+        train_end = int(n_episodes * self.config['splits']['train_ratio'])
+        val_end = train_end + int(n_episodes * self.config['splits']['val_ratio'])
         
-        train_files = files[:train_end]
-        val_files = files[train_end:val_end]
-        test_files = files[val_end:]
+        train_episodes = episodes[:train_end]
+        val_episodes = episodes[train_end:val_end]
+        test_episodes = episodes[val_end:]
         
         # Get segment indices
         splits = {
-            'train': [idx for f in train_files for idx in file_groups[f]],
-            'val': [idx for f in val_files for idx in file_groups[f]],
-            'test': [idx for f in test_files for idx in file_groups[f]]
+            'train': [idx for ep in train_episodes for idx in episode_groups[ep]],
+            'val': [idx for ep in val_episodes for idx in episode_groups[ep]],
+            'test': [idx for ep in test_episodes for idx in episode_groups[ep]]
         }
+        
+        print(f"Split into {len(train_episodes)} train episodes, {len(val_episodes)} val episodes, {len(test_episodes)} test episodes")
         
         return splits
     

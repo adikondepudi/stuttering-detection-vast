@@ -18,6 +18,14 @@ labels:
   frames_per_segment: 250  # For 5s at ~50Hz from Whisper
   pooled_frames: 25       # After mean pooling
   
+  # Mapping from CSV columns to disfluency types
+  csv_column_mapping:
+    "Prolongation": "Prolongation"
+    "Interjection": "Interjection" 
+    "WordRep": "Word Repetition"
+    "SoundRep": "Sound Repetition"
+    "Block": "Blocks"
+  
 features:
   whisper_model: "openai/whisper-base.en"
   whisper_dim: 768
@@ -61,7 +69,7 @@ splits:
 cloud:
   enabled: false  # Set to true when you have actual data
   type: "gdrive"  # or "s3", "gcs"
-  gdrive_file_id: "your_google_drive_file_id_here"
+  gdrive_file_id: "1wqLf7Ghw4sTFDVj9oah2scyWWtltwUSv"
 
 cost_optimization:
   max_training_hours: 6.0

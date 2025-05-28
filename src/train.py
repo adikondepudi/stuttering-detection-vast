@@ -23,7 +23,7 @@ except ImportError:
 from .model import build_model
 from .dataset import create_dataloaders
 from .feature_extraction import FeatureExtractor
-from .utils import (EarlyStopping, save_checkpoint, load_checkpoint, 
+from .utils import (EarlyStopping, CostOptimizer, save_checkpoint, load_checkpoint, 
                    monitor_resources, MetricTracker,
                    cleanup_checkpoints, format_time)
 

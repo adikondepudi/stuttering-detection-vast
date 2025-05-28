@@ -3,7 +3,8 @@ import torch.nn as nn
 import numpy as np
 import librosa
 from transformers import WhisperModel, WhisperFeatureExtractor
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
+from pathlib import Path
 
 
 class FeatureExtractor:
