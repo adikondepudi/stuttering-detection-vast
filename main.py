@@ -13,6 +13,23 @@ import atexit
 from src import DataPreprocessor, Trainer, set_seed, get_device, count_parameters, print_training_header
 
 
+def validate_config(config):
+    required_keys = [
+        'data.raw_data_path',
+        'data.processed_data_path',
+        'labels.disfluency_types',
+        'training.batch_size'
+    ]
+    for key in required_keys:
+        keys = key.split('.')
+        current = config
+        try:
+            for k in keys:
+                current = current[k]
+        except KeyError:
+            raise ValueError(f"Missing required config key: {key}")
+
+
 def main(args):
     # Print header with system information
     device = print_training_header()
@@ -22,6 +39,7 @@ def main(args):
         with open(args.config, 'r') as f:
             config = yaml.safe_load(f)
         print(f"Configuration loaded from: {args.config}")
+        validate_config(config)
     except Exception as e:
         print(f"Error loading config file {args.config}: {e}")
         sys.exit(1)

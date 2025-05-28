@@ -18,7 +18,6 @@ try:
     HAS_WANDB = True
 except ImportError:
     HAS_WANDB = False
-    print("wandb not available. Install with: pip install wandb")
 
 from .model import build_model
 from .dataset import create_dataloaders
@@ -37,14 +36,17 @@ class Trainer:
         self.use_wandb = use_wandb and HAS_WANDB
         
         # Initialize Weights & Biases for experiment tracking
-        if self.use_wandb:
-            wandb.init(
-                project=config.get('monitoring', {}).get('wandb_project', 'stuttering-detection'),
-                config=config,
-                name=f"run_{time.strftime('%Y%m%d_%H%M%S')}",
-                save_code=True
-            )
-            print("WandB initialized for experiment tracking")
+        if use_wandb:
+            if not HAS_WANDB:
+                print("wandb not available. Install with: pip install wandb")
+            else:
+                wandb.init(
+                    project=config.get('monitoring', {}).get('wandb_project', 'stuttering-detection'),
+                    config=config,
+                    name=f"run_{time.strftime('%Y%m%d_%H%M%S')}",
+                    save_code=True
+                )
+                print("WandB initialized for experiment tracking")
         
         # Initialize feature extractor
         print("Initializing feature extractor...")
@@ -153,6 +155,8 @@ class Trainer:
             monitor_resources()
         
         for epoch in range(self.start_epoch, self.config['training']['max_epochs']):
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             epoch_start_time = time.time()
             print(f"\nEpoch {epoch+1}/{self.config['training']['max_epochs']}")
             print("-" * 50)

@@ -154,7 +154,7 @@ def monitor_resources():
                     print(f"GPU Memory Allocated: {allocated:.2f} GB")
                     print(f"GPU Memory Cached: {cached:.2f} GB")
                     print(f"GPU Memory Total: {total:.2f} GB")
-        except Exception as e:
+        except (RuntimeError, AttributeError, ImportError) as e:
             print(f"GPU monitoring error: {e}")
     else:
         print("GPU monitoring not available")
@@ -169,7 +169,7 @@ def monitor_resources():
         # Disk usage
         disk = psutil.disk_usage('/')
         print(f"Disk Usage: {disk.percent:.1f}% ({disk.used/1e9:.1f}/{disk.total/1e9:.1f} GB)")
-    except Exception as e:
+    except (OSError, AttributeError, ImportError) as e:
         print(f"System monitoring error: {e}")
     
     print("="*50)

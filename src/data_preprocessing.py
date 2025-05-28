@@ -6,7 +6,7 @@ import pandas as pd
 import soundfile as sf
 import librosa
 import pyloudnorm as pyln
-from pathlib import Path
+from pathlib import Path, PurePath
 from collections import defaultdict
 from typing import Dict, List, Tuple, Optional
 import warnings
@@ -95,7 +95,8 @@ class DataPreprocessor:
         """Download from Google Drive"""
         file_id = self.cloud_config.get('gdrive_file_id')
         if not file_id or file_id == 'your_google_drive_file_id_here':
-            raise ValueError("Please set your Google Drive file ID in config.yaml")
+            print("Warning: Google Drive file ID not set. Skipping cloud download. If you have local data, this is fine.")
+            return
         
         # Create raw data directory
         self.raw_path.mkdir(parents=True, exist_ok=True)
@@ -292,20 +293,20 @@ class DataPreprocessor:
                 print(f"Missing required columns: {missing_cols}")
                 return {}
             
-            for _, row in df.iterrows():
-                # Construct audio filename
-                show = row['Show']
-                try:
-                    ep_id = f"{int(pd.to_numeric(row['EpId'], errors='coerce')):03d}"
-                except (ValueError, TypeError):
-                    print(f"Invalid EpId: {row['EpId']}, skipping row")
+            for row in df.itertuples(index=False):
+                show = getattr(row, 'Show', None)
+                ep_id_val = getattr(row, 'EpId', None)
+                ep_id_numeric = pd.to_numeric(ep_id_val, errors='coerce')
+                if pd.isna(ep_id_numeric):
+                    print(f"Invalid EpId: {ep_id_val}, skipping row")
                     continue
-                clip_id = int(row['ClipId'])
+                ep_id = f"{int(ep_id_numeric):03d}"
+                clip_id = int(getattr(row, 'ClipId', 0))
                 audio_filename = f"{show}_{ep_id}_{clip_id}.wav"
                 
                 # Convert start/stop from milliseconds to seconds
-                start_time = float(row['Start']) / 1000.0
-                stop_time = float(row['Stop']) / 1000.0
+                start_time = float(getattr(row, 'Start', 0)) / 1000.0
+                stop_time = float(getattr(row, 'Stop', 0)) / 1000.0
                 clip_duration = stop_time - start_time
                 
                 # Skip clips that are too short
@@ -316,8 +317,9 @@ class DataPreprocessor:
                 clip_annotations = []
                 
                 for csv_col, disfluency_type in self.csv_to_disfluency_map.items():
-                    if csv_col in row and pd.notna(row[csv_col]):
-                        numeric_val = pd.to_numeric(row[csv_col], errors='coerce')
+                    val = getattr(row, csv_col, None)
+                    if pd.notna(val):
+                        numeric_val = pd.to_numeric(val, errors='coerce')
                         if pd.notna(numeric_val) and numeric_val > 0:
                             # For this format, we assume the disfluency spans the entire clip
                             clip_annotations.append({
@@ -327,7 +329,7 @@ class DataPreprocessor:
                             })
                 
                 # Only add if we have some disfluencies or if it's marked as fluent
-                no_stutter_val = pd.to_numeric(row.get('NoStutteredWords', 0), errors='coerce')
+                no_stutter_val = pd.to_numeric(getattr(row, 'NoStutteredWords', 0), errors='coerce')
                 if clip_annotations or (pd.notna(no_stutter_val) and no_stutter_val > 0):
                     annotations[audio_filename] = clip_annotations
                     
@@ -348,18 +350,19 @@ class DataPreprocessor:
     def _load_and_normalize_audio(self, audio_path: Path) -> Optional[np.ndarray]:
         """Load audio file and normalize to target loudness"""
         try:
+            # Validate file extension
+            if not str(audio_path).lower().endswith(('.wav', '.mp3', '.flac', '.m4a')):
+                print(f"Unsupported audio file format: {audio_path}")
+                return None
             # Load audio
             audio, sr = librosa.load(audio_path, sr=self.sample_rate, mono=True)
-            
-            if len(audio) == 0:
-                print(f"Empty audio file: {audio_path}")
+            if len(audio) == 0 or not np.isfinite(audio).all():
+                print(f"Empty or corrupted audio file: {audio_path}")
                 return None
-            
             # Normalize loudness
             loudness = self.meter.integrated_loudness(audio)
             if np.isfinite(loudness):
                 audio = pyln.normalize.loudness(audio, loudness, self.config['data']['target_loudness'])
-            
             return audio
         except Exception as e:
             print(f"Error loading {audio_path}: {e}")
@@ -437,7 +440,10 @@ class DataPreprocessor:
     
     def _find_audio_file(self, audio_file: str) -> Optional[Path]:
         """Find audio file in raw data directory"""
-        # Try exact path
+        # Validate audio_file is a filename (no path traversal)
+        if PurePath(audio_file).name != audio_file:
+            print(f"Invalid audio file name (possible path traversal): {audio_file}")
+            return None
         exact_path = self.raw_path / audio_file
         if exact_path.exists():
             return exact_path
