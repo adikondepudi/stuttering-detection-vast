@@ -14,3 +14,4 @@ gdown>=4.0.0
 psutil>=5.9.0
 GPUtil>=1.4.0
 wandb>=0.15.0
+matplotlib>=3.7.0

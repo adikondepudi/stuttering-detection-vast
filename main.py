@@ -33,6 +33,36 @@ def validate_config(config):
             raise ValueError(f"Missing required config key: {key_path}")
 
 
+def check_preprocessed_data_exists(config):
+    """Check if preprocessed data exists and is complete"""
+    processed_path = Path(config['data']['processed_data_path'])
+    splits_path = Path(config['data']['splits_path'])
+    
+    metadata_file = processed_path / "metadata.json"
+    splits_file = splits_path / "splits.json"
+    
+    if not (metadata_file.exists() and splits_file.exists()):
+        return False
+    
+    # Also check if we have actual processed files
+    try:
+        import json
+        with open(metadata_file, 'r') as f:
+            metadata = json.load(f)
+        
+        if len(metadata) > 0:
+            # Check if first segment files exist
+            first_segment = metadata[0]
+            audio_path = Path(first_segment['audio_path'])
+            label_path = Path(first_segment['label_path'])
+            
+            return audio_path.exists() and label_path.exists()
+    except:
+        pass
+    
+    return False
+
+
 def main(args):
     # Print header with system information
     device = print_training_header()
@@ -72,17 +102,13 @@ def main(args):
             print("Preprocessing completed successfully!")
             
         elif args.mode == 'train':
-            # Check if preprocessed data exists
-            processed_path = Path(config['data']['processed_data_path'])
-            if not processed_path.exists() or not any(processed_path.iterdir()):
-                print("No preprocessed data found. Running preprocessing first...")
-                
-                print("\n" + "="*50)
-                print("PREPROCESSING DATA FIRST")
-                print("="*50)
-                
-                preprocessor = DataPreprocessor(config)
-                preprocessor.process_dataset()
+            # Check if preprocessed data exists BEFORE creating trainer
+            if not check_preprocessed_data_exists(config):
+                print("No preprocessed data found. Please run preprocessing first.")
+                print("Options:")
+                print("  1. Run: python main.py --mode preprocess")
+                print("  2. Run: python main.py --mode all")
+                sys.exit(1)
             
             # Run training
             print("\n" + "="*50)
@@ -120,10 +146,14 @@ def main(args):
             print("RUNNING FULL PIPELINE")
             print("="*50)
             
-            # Preprocessing
-            print("\n--- DATA PREPROCESSING ---")
-            preprocessor = DataPreprocessor(config)
-            preprocessor.process_dataset()
+            # Always run preprocessing in 'all' mode, but check if it's needed
+            if check_preprocessed_data_exists(config):
+                print("Preprocessed data already exists. Skipping preprocessing...")
+                print("To force reprocessing, delete the processed data directory or run --mode preprocess")
+            else:
+                print("\n--- DATA PREPROCESSING ---")
+                preprocessor = DataPreprocessor(config)
+                preprocessor.process_dataset()
             
             # Training
             print("\n--- MODEL TRAINING ---")
