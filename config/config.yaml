@@ -52,9 +52,9 @@ training:
   max_epochs: 75
   early_stopping_patience: 10
   lr_scheduler_patience: 3
-  initial_lr: 5e-5
-  weight_decay: 1e-2
-  min_lr: 1e-7
+  initial_lr: 0.00005
+  weight_decay: 0.01
+  min_lr: 0.0000001
   lr_reduction_factor: 0.2
   gradient_clip_value: 1.0
   focal_loss_alpha: 0.25
