@@ -80,3 +80,6 @@ monitoring:
   use_wandb: false  # Set to true if you want WandB logging
   wandb_project: "stuttering-detection"
   print_resource_usage: true
+
+processing:
+  max_workers: 8
