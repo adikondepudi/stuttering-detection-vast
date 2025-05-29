@@ -486,7 +486,7 @@ class DataPreprocessor:
                 if pd.isna(ep_id_numeric):
                     print(f"Invalid EpId: {ep_id_val}, skipping row")
                     continue
-                ep_id = str(int(ep_id_numeric))
+                ep_id = f"{int(ep_id_numeric):03d}"
                 clip_id_val = getattr(row, 'ClipId', 0)
                 clip_id_numeric = pd.to_numeric(clip_id_val, errors='coerce')
                 if pd.isna(clip_id_numeric):
@@ -615,6 +615,9 @@ class DataPreprocessor:
         """Save processed segments and splits"""
         print("Saving segments to disk...")
         
+        # Create metadata without numpy arrays
+        metadata = []
+        
         for i, segment in enumerate(segments_data):
             # Save audio
             audio_path = self.processed_path / f"segment_{i:06d}.wav"
@@ -624,15 +627,21 @@ class DataPreprocessor:
             label_path = self.processed_path / f"segment_{i:06d}_labels.npy"
             np.save(label_path, segment['labels'])
             
-            # Update segment data
-            segment['audio_path'] = str(audio_path)
-            segment['label_path'] = str(label_path)
-            del segment['audio']  # Remove audio array to save memory
+            # Create metadata entry (without numpy arrays)
+            metadata_entry = {
+                'audio_file': segment['audio_file'],
+                'segment_idx': segment['segment_idx'],
+                'audio_path': str(audio_path),
+                'label_path': str(label_path),
+                'start_time': float(segment['start_time']),  # Ensure it's a Python float
+                'end_time': float(segment['end_time'])       # Ensure it's a Python float
+            }
+            metadata.append(metadata_entry)
         
-        # Save metadata
+        # Save metadata (now serializable)
         metadata_path = self.processed_path / "metadata.json"
         with open(metadata_path, 'w') as f:
-            json.dump(segments_data, f, indent=2)
+            json.dump(metadata, f, indent=2)
         
         # Save splits
         splits_path = self.splits_path / "splits.json"
