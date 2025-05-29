@@ -28,7 +28,7 @@ labels:
   
 features:
   whisper_model: "openai/whisper-base.en"
-  whisper_dim: 768
+  whisper_dim: 512
   mfcc:
     n_mfcc: 13
     n_fft: 400      # 25ms at 16kHz

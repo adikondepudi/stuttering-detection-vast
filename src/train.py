@@ -60,9 +60,15 @@ class Trainer:
         print("Initializing feature extractor...")
         try:
             self.feature_extractor = FeatureExtractor(config, self.device, verbose=self.verbose)
+            # Get actual dimensions from feature extractor
+            self.expected_feature_dim = self.feature_extractor.get_feature_dim()
+            self.expected_seq_len = config['labels']['pooled_frames']
         except Exception as e:
             print(f"Error initializing feature extractor: {e}")
             raise
+        
+        # Set expected dimensions BEFORE creating data loaders
+        self.num_classes = config['labels']['num_classes']
         
         # Create data loaders with error handling
         print("Creating data loaders...")
@@ -82,7 +88,12 @@ class Trainer:
         # Build model
         print("Building model...")
         try:
-            self.model, self.criterion = build_model(config, verbose=self.verbose)
+            # Pass actual feature dimension to model builder
+            self.model, self.criterion = build_model(
+                config, 
+                verbose=self.verbose,
+                actual_feature_dim=self.expected_feature_dim
+            )
             self.model.to(self.device)
         except Exception as e:
             print(f"Error building model: {e}")
@@ -128,12 +139,6 @@ class Trainer:
         # Class names and metrics
         self.class_names = config['labels']['disfluency_types']
         self.threshold = config['training']['prediction_threshold']
-        self.num_classes = config['labels']['num_classes']
-        
-        # Expected dimensions
-        self.expected_seq_len = config['labels']['pooled_frames']
-        self.expected_feature_dim = (config['features'].get('whisper_dim', 768) + 
-                                    config['features']['mfcc']['n_mfcc'] * 3)
         
         # Metric tracking
         metric_names = ['train_loss', 'val_loss', 'val_macro_f1', 'val_weighted_f1', 'val_uar']
@@ -798,7 +803,8 @@ class Trainer:
                 'trainable_parameters': sum(p.numel() for p in self.model.parameters() if p.requires_grad),
                 'final_learning_rate': self.optimizer.param_groups[0]['lr'],
                 'best_val_f1': float(self.best_val_f1),
-                'total_epochs_trained': len(self.metric_tracker.history.get('train_loss', []))
+                'total_epochs_trained': len(self.metric_tracker.history.get('train_loss', [])),
+                'actual_feature_dim': self.expected_feature_dim
             },
             'dataset_info': {
                 'train_size': len(self.train_loader.dataset) if self.train_loader else 0,
@@ -914,6 +920,7 @@ class Trainer:
         print(f"Device Used: {self.device}")
         print(f"Model Parameters: {sum(p.numel() for p in self.model.parameters()):,}")
         print(f"Best Validation F1: {self.best_val_f1:.4f}")
+        print(f"Feature Dimension: {self.expected_feature_dim}")
         
         # Dataset info
         print(f"\nDataset Information:")

@@ -25,11 +25,15 @@ class StutterDataset(Dataset):
         self.pooled_frames = config['labels']['pooled_frames']
         self.num_classes = config['labels']['num_classes']
         
-        # Calculate expected feature dimension
-        whisper_dim = config['features'].get('whisper_dim', 768)
-        n_mfcc = config['features']['mfcc']['n_mfcc']
-        mfcc_total_dim = n_mfcc * 3  # base + delta + delta2
-        self.expected_feature_dim = whisper_dim + mfcc_total_dim
+        # Get expected feature dimension from feature extractor if available
+        if self.feature_extractor:
+            self.expected_feature_dim = self.feature_extractor.get_feature_dim()
+        else:
+            # Fallback to calculation from config (but this might be wrong if whisper_dim is incorrect)
+            whisper_dim = config['features'].get('whisper_dim', 512)
+            n_mfcc = config['features']['mfcc']['n_mfcc']
+            mfcc_total_dim = n_mfcc * 3  # base + delta + delta2
+            self.expected_feature_dim = whisper_dim + mfcc_total_dim
         
         if self.verbose:
             print(f"Dataset initialized for {split} split:")
@@ -37,6 +41,8 @@ class StutterDataset(Dataset):
             print(f"  Expected label frames: {self.expected_label_frames}")
             print(f"  Target pooled frames: {self.pooled_frames}")
             print(f"  Expected feature dimension: {self.expected_feature_dim}")
+            if self.feature_extractor:
+                print(f"  (Feature dimension from extractor)")
         
         # Load metadata and splits
         processed_path = Path(config['data']['processed_data_path'])
