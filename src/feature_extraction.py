@@ -53,6 +53,10 @@ class FeatureExtractor:
             print(f"  Expected audio samples: {self.expected_samples}")
             print(f"  Target pooled frames: {self.pooled_frames}")
             print(f"  Expected feature dimension: {self.expected_feature_dim}")
+
+    def get_feature_dim(self) -> int:
+        """Get the expected feature dimension"""
+        return self.expected_feature_dim
     
     def extract_features(self, audio: np.ndarray) -> np.ndarray:
         """Extract fused features from audio segment with robust error handling"""
