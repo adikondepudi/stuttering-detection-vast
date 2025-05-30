@@ -13,6 +13,7 @@ import time
 import os
 from typing import Dict, List, Optional
 import gc
+import librosa
 
 class FeaturePreprocessor:
     """Pre-extract and cache features for all training data"""
@@ -21,6 +22,7 @@ class FeaturePreprocessor:
         self.config = config
         self.feature_extractor = feature_extractor
         self.device = device
+        self.sample_rate = config['data']['sample_rate']
         
         # Paths
         self.processed_path = Path(config['data']['processed_data_path'])
