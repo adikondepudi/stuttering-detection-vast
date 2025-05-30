@@ -92,7 +92,6 @@ class Trainer:
             self.model, self.criterion = build_model(
                 config, 
                 verbose=self.verbose,
-                actual_feature_dim=self.expected_feature_dim
             )
             self.model.to(self.device)
         except Exception as e:
