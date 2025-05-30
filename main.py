@@ -11,6 +11,9 @@ from pathlib import Path
 import torch
 import gc
 
+import multiprocessing
+multiprocessing.set_start_method('spawn', force=True)
+
 # Add the feature preprocessing module
 sys.path.append(str(Path(__file__).parent))
 try:
