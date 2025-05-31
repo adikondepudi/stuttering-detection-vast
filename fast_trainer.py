@@ -511,7 +511,7 @@ class FastTrainer:
         # Load best model
         best_model_path = self.checkpoint_dir / 'best_model.pth'
         if best_model_path.exists():
-            checkpoint_data = torch.load(best_model_path, map_location=self.device)
+            checkpoint_data = torch.load(best_model_path, map_location=self.device, weights_only=False)
             self.model.load_state_dict(checkpoint_data['model_state_dict'])
             print(f"Loaded best model (F1: {checkpoint_data.get('score', 0):.4f})")
         
